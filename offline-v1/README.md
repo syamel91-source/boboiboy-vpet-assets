@@ -1,16 +1,29 @@
-# BoBoiBoy VPET Offline v1
+# BoBoiBoy VPET Offline v2
 
-Clean offline-first Android VPET build.
+Offline-first Android VPET.
 
-- No Render
-- No WebSocket server
-- No cloud dependency
-- Local Player vs CPU battle
+## Current features
+- Pet Home
+- Feed
+- Train
+- Sleep
+- Clean
+- Local EXP and Level
+- Local HP, hunger, happiness, energy and cleanliness
+- Local win counter
+- Persistent save using Android SharedPreferences
+- Offline Player vs CPU battle
 - Attack / Special / Heal
-- HP, victory and defeat
-- Animation-state system
-- Prepared for 64x56 VPET sprites
+- Victory handling
 
-Open the `offline-v1` folder as an Android Studio project.
+## No Internet required
 
-Next: add real 64x56 sprites, pet care, local saves, evolution, Bluetooth physical VPET, then optional online mode.
+There is no Render server, WebSocket server, login or cloud dependency.
+
+## Next
+1. Replace placeholder graphics with the 64x56 BoBoiBoy VPET sprite set.
+2. Add timed hunger/energy decay.
+3. Add training mini-games.
+4. Add evolution requirements and evolution animations.
+5. Add local save slots.
+6. Add Bluetooth physical VPET support.
