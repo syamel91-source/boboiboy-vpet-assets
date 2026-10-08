@@ -132,7 +132,7 @@ fun Battle(p:PetData,animation:PetAnimation,back:()->Unit,finishWin:(PetAnimatio
                 localAnimation=PetAnimation.ATTACK
                 cpu=(cpu-12).coerceAtLeast(0)
                 if(cpu==0){over=true;finishWin(PetAnimation.VICTORY)}
-                else {hp=(hp-8).coerceAtLeast(0); if(hp==0){over=true;finishWin(PetAnimation.DEFEAT)}}
+                else {hp=(hp-8).coerceAtLeast(0); if(hp==0){over=true;back()}}
             },enabled=!over){Text("Attack")}
             Button({
                 localAnimation=PetAnimation.SPECIAL
