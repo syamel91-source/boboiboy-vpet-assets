@@ -1,10 +1,10 @@
 package com.boboiboy.vpet.offline
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -16,74 +16,52 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-enum class PetAnimation { IDLE, ATTACK, SPECIAL, HURT, HAPPY, SAD }
+data class PetData(val level:Int=1,val exp:Int=0,val hp:Int=100,val hunger:Int=80,val happiness:Int=80,val energy:Int=80,val clean:Int=80,val wins:Int=0)
 
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent { OfflineBattle() }
-    }
+class MainActivity:ComponentActivity(){
+ override fun onCreate(b:Bundle?){
+  super.onCreate(b)
+  val prefs=getSharedPreferences("vpet",Context.MODE_PRIVATE)
+  setContent{
+   var pet by remember{mutableStateOf(load(prefs))}
+   var page by remember{mutableStateOf("HOME")}
+   fun save(p:PetData){pet=p;prefs.edit().putInt("level",p.level).putInt("exp",p.exp).putInt("hp",p.hp).putInt("hunger",p.hunger).putInt("happiness",p.happiness).putInt("energy",p.energy).putInt("clean",p.clean).putInt("wins",p.wins).apply()}
+   MaterialTheme(colorScheme=darkColorScheme(background=Color(0xFF101014),surface=Color(0xFF1B1B22))){
+    if(page=="BATTLE") Battle(pet,{page="HOME"},{save(levelUp(pet.copy(wins=pet.wins+1)));page="HOME"})
+    else Home(pet,{a->save(when(a){
+     "FEED"->pet.copy(hunger=(pet.hunger+20).coerceAtMost(100),happiness=(pet.happiness+5).coerceAtMost(100))
+     "TRAIN"->levelUp(pet.copy(energy=(pet.energy-12).coerceAtLeast(0),exp=pet.exp+25))
+     "SLEEP"->pet.copy(energy=100,hp=(pet.hp+10).coerceAtMost(100))
+     else->pet.copy(clean=100,happiness=(pet.happiness+5).coerceAtMost(100))})},{page="BATTLE"})
+   }
+  }
+ }
+ fun load(p:android.content.SharedPreferences)=PetData(p.getInt("level",1),p.getInt("exp",0),p.getInt("hp",100),p.getInt("hunger",80),p.getInt("happiness",80),p.getInt("energy",80),p.getInt("clean",80),p.getInt("wins",0))
+ fun levelUp(p:PetData):PetData=if(p.exp>=100)p.copy(level=p.level+1,exp=p.exp-100,hp=100,energy=100)else p
 }
 
-@Composable
-fun OfflineBattle() {
-    var playerHp by remember { mutableIntStateOf(100) }
-    var cpuHp by remember { mutableIntStateOf(100) }
-    var anim by remember { mutableStateOf(PetAnimation.IDLE) }
-    var over by remember { mutableStateOf(false) }
-    var log by remember { mutableStateOf(listOf("Offline battle ready.")) }
-
-    fun add(s:String) { log=(log+s).takeLast(8) }
-    fun reset() { playerHp=100; cpuHp=100; anim=PetAnimation.IDLE; over=false; log=listOf("New offline battle.") }
-
-    fun act(a:String) {
-        if(over) return
-        when(a) {
-            "attack" -> { cpuHp=(cpuHp-12).coerceAtLeast(0); anim=PetAnimation.ATTACK; add("Attack: 12 damage") }
-            "special" -> { cpuHp=(cpuHp-22).coerceAtLeast(0); anim=PetAnimation.SPECIAL; add("Special: 22 damage") }
-            "heal" -> { playerHp=(playerHp+10).coerceAtMost(100); anim=PetAnimation.HAPPY; add("Heal: +10 HP") }
-        }
-        if(cpuHp==0) { over=true; anim=PetAnimation.HAPPY; add("VICTORY!") }
-        else {
-            playerHp=(playerHp-8).coerceAtLeast(0); anim=PetAnimation.HURT; add("CPU: 8 damage")
-            if(playerHp==0) { over=true; anim=PetAnimation.SAD; add("DEFEAT.") } else anim=PetAnimation.IDLE
-        }
-    }
-
-    MaterialTheme(colorScheme=darkColorScheme(background=Color(0xFF101014),surface=Color(0xFF1B1B22))) {
-        Surface(Modifier.fillMaxSize()) {
-            Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                Text("BoBoiBoy VPET", fontSize=26.sp, fontWeight=FontWeight.Bold)
-                Text("OFFLINE MODE", color=Color(0xFF8AB4F8))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                    PetCard("PLAYER",playerHp,anim,Modifier.weight(1f))
-                    PetCard("CPU",cpuHp,PetAnimation.IDLE,Modifier.weight(1f))
-                }
-                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    Button({act("attack")}, enabled=!over){Text("Attack")}
-                    Button({act("special")}, enabled=!over){Text("Special")}
-                    Button({act("heal")}, enabled=!over){Text("Heal")}
-                }
-                if(over) Button({reset()},Modifier.fillMaxWidth()){Text("NEW BATTLE")}
-                Text("Battle Log",fontWeight=FontWeight.Bold)
-                Column(Modifier.fillMaxWidth().weight(1f).background(Color(0xFF17171D),RoundedCornerShape(12.dp)).padding(12.dp)) {
-                    log.forEach { Text("• $it",fontSize=14.sp) }
-                }
-                Text("No Internet • No server • Local battle",fontSize=12.sp,color=Color.Gray)
-            }
-        }
-    }
+@Composable fun Home(p:PetData,action:(String)->Unit,battle:()->Unit){
+ Column(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+  Text("BoBoiBoy VPET",fontSize=27.sp,fontWeight=FontWeight.Bold)
+  Text("OFFLINE • PET HOME",color=Color(0xFF8AB4F8))
+  Card(Modifier.fillMaxWidth()){Column(Modifier.padding(16.dp),horizontalAlignment=Alignment.CenterHorizontally){Text("●",fontSize=70.sp);Text("Level "+p.level,fontSize=21.sp);Text("EXP "+p.exp+"/100   Wins "+p.wins)}}
+  Stat("HP",p.hp);Stat("Hunger",p.hunger);Stat("Happiness",p.happiness);Stat("Energy",p.energy);Stat("Clean",p.clean)
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){Button({action("FEED")},Modifier.weight(1f)){Text("Feed")};Button({action("TRAIN")},Modifier.weight(1f)){Text("Train")}}
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){Button({action("SLEEP")},Modifier.weight(1f)){Text("Sleep")};Button({action("CLEAN")},Modifier.weight(1f)){Text("Clean")}}
+  Button(battle,Modifier.fillMaxWidth()){Text("⚔ BATTLE")}
+ }
 }
-
-@Composable
-fun PetCard(title:String,hp:Int,anim:PetAnimation,modifier:Modifier) {
-    Column(modifier.border(1.dp,Color(0xFF3A3A45),RoundedCornerShape(14.dp)).padding(10.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-        Text(title,fontWeight=FontWeight.Bold)
-        Box(Modifier.size(100.dp).background(Color(0xFF24242D),RoundedCornerShape(12.dp)),contentAlignment=Alignment.Center) {
-            Text(when(anim){PetAnimation.ATTACK->"⚡";PetAnimation.SPECIAL->"🔥";PetAnimation.HURT->"💥";PetAnimation.HAPPY->"★";PetAnimation.SAD->"…";else->"●"},fontSize=42.sp)
-        }
-        Text("HP $hp / 100")
-        LinearProgressIndicator(progress={hp/100f},Modifier.fillMaxWidth())
-        Text(anim.name,fontSize=11.sp,color=Color.Gray)
-    }
+@Composable fun Stat(n:String,v:Int){Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(n,Modifier.width(90.dp));LinearProgressIndicator(progress={v/100f},Modifier.weight(1f));Text(" "+v)}}
+@Composable fun Battle(p:PetData,back:()->Unit,win:()->Unit){
+ var hp by remember{mutableIntStateOf(p.hp)};var cpu by remember{mutableIntStateOf(100)};var over by remember{mutableStateOf(false)}
+ Column(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("⚔ OFFLINE BATTLE",fontSize=22.sp,fontWeight=FontWeight.Bold);TextButton(back){Text("Home")}}
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){Fighter("YOU",hp,Modifier.weight(1f));Fighter("CPU",cpu,Modifier.weight(1f))}
+  Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+   Button({cpu=(cpu-12).coerceAtLeast(0);if(cpu==0){over=true;win()}else hp=(hp-8).coerceAtLeast(0)},enabled=!over){Text("Attack")}
+   Button({cpu=(cpu-22).coerceAtLeast(0);if(cpu==0){over=true;win()}else hp=(hp-8).coerceAtLeast(0)},enabled=!over){Text("Special")}
+   Button({hp=(hp+10).coerceAtMost(100)},enabled=!over){Text("Heal")}
+  }
+ }
 }
+@Composable fun Fighter(n:String,hp:Int,m:Modifier){Column(m.background(Color(0xFF1B1B22),RoundedCornerShape(14.dp)).padding(12.dp),horizontalAlignment=Alignment.CenterHorizontally){Text(n,fontWeight=FontWeight.Bold);Text("●",fontSize=55.sp);Text("HP "+hp+"/100");LinearProgressIndicator(progress={hp/100f},Modifier.fillMaxWidth())}}
